@@ -56,7 +56,6 @@
 
 	onMount(async () => {
 		try {
-			// Load the locate control
 			await loadLocateControl();
 
 			const map = L.map(mapContainer).setView([0, 0], 2);
@@ -77,10 +76,21 @@
 						inViewNotFollowing: "inView",
 					},
 					locateOptions: {
-						maxZoom: 16,
+						enableHighAccuracy: true,
+						maxZoom: 18,
 					},
 				})
 				.addTo(map);
+
+			/*lc.on("startactive", () => {
+				map.setZoom(16);
+			});
+
+			lc.on("locationfound", (e) => {
+				console.log("User is at", e.latlng, "with accuracy", e.accuracy);
+			});*/
+
+			//lc.start(); //Auto Start
 
 			return () => {
 				map.remove();
