@@ -64,12 +64,13 @@
 				attribution: "&copy; OpenStreetMap contributors",
 			}).addTo(map);
 
-			let lc = L.control
+			var lc = L.control
 				.locate({
 					position: "topleft",
 					strings: {
-						title: "Show me where I am",
+						title: "Current location",
 					},
+					keepCurrentZoomLevel: true,
 					clickBehavior: {
 						inView: "setView",
 						outOfView: "setView",
@@ -82,13 +83,10 @@
 				})
 				.addTo(map);
 
-			/*lc.on("startactive", () => {
-				map.setZoom(16);
+			map.on("locateactivate", function () {
+				console.log("Locate control started following user. 📍");
+				map.setZoom(Math.max(Math.min(map.getZoom(), 18), 12));
 			});
-
-			lc.on("locationfound", (e) => {
-				console.log("User is at", e.latlng, "with accuracy", e.accuracy);
-			});*/
 
 			//lc.start(); //Auto Start
 
