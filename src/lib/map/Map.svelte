@@ -1,11 +1,11 @@
-<script>
+<script lang="ts">
 	import { onMount } from "svelte";
-	import L from "leaflet";
+	import L, { Map } from "leaflet";
 	import "leaflet/dist/leaflet.css";
 
-	let mapContainer;
+	let mapContainer: HTMLDivElement;
 
-	delete L.Icon.Default.prototype._getIconUrl;
+	delete (L.Icon.Default.prototype as any)._getIconUrl;
 	L.Icon.Default.mergeOptions({
 		iconRetinaUrl: new URL(
 			"leaflet/dist/images/marker-icon-2x.png",
@@ -17,18 +17,15 @@
 			.href,
 	});
 
-	async function loadLocateControl() {
-		window.L = L;
+	async function loadLocateControl(): Promise<void> {
+		(window as any).L = L;
 
 		try {
 			await import("leaflet.locatecontrol/dist/L.Control.Locate.min.css");
 			await import("leaflet.locatecontrol");
-
-			if (L.control.locate) {
-				return;
-			}
+			if ((L.control as any).locate) return;
 		} catch (e) {
-			console.log("NPM package failed, trying CDN...", e);
+			console.warn("NPM import failed, loading LocateControl via CDN...", e);
 		}
 
 		return new Promise((resolve, reject) => {
@@ -42,70 +39,131 @@
 			script.src =
 				"https://cdn.jsdelivr.net/npm/leaflet.locatecontrol@0.79.0/dist/L.Control.Locate.min.js";
 			script.onload = () => {
-				if (L.control.locate) {
+				if ((L.control as any).locate) {
 					resolve();
 				} else {
-					reject(new Error("Locate control not loaded"));
+					reject(new Error("LocateControl failed to load from CDN"));
 				}
 			};
-			script.onerror = () =>
-				reject(new Error("Failed to load locate control script"));
+			script.onerror = () => reject(new Error("CDN script failed to load"));
 			document.head.appendChild(script);
 		});
 	}
 
-	onMount(async () => {
-		try {
-			await loadLocateControl();
+	onMount(() => {
+		let map: Map;
 
-			const map = L.map(mapContainer).setView([0, 0], 2);
+		const initMap = async () => {
+			try {
+				await loadLocateControl();
 
-			L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-				attribution: "&copy; OpenStreetMap contributors",
-			}).addTo(map);
+				map = L.map(mapContainer).setView([0, 0], 2);
 
-			var lc = L.control
-				.locate({
-					position: "topleft",
-					strings: {
-						title: "Current location",
-					},
-					keepCurrentZoomLevel: true,
-					clickBehavior: {
-						inView: "setView",
-						outOfView: "setView",
-						inViewNotFollowing: "inView",
-					},
-					locateOptions: {
-						enableHighAccuracy: true,
-						maxZoom: 18,
-					},
-				})
-				.addTo(map);
+				// --Layers--
 
-			map.on("locateactivate", function () {
-				console.log("Locate control started following user. 📍");
-				map.setZoom(Math.max(Math.min(map.getZoom(), 18), 12));
-			});
+				// Base layers
+				const osm = L.tileLayer(
+					"https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+					{
+						attribution: "&copy; OpenStreetMap contributors",
+					}
+				);
 
-			//lc.start(); //Auto Start
+				const osmGray = L.tileLayer(
+					"https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+					{
+						attribution: "&copy; OpenStreetMap contributors",
+					}
+				);
+				osmGray.on("tileload", (event) => {
+					const container = osmGray.getContainer();
+					if (container && !container.classList.contains("grayscale-tile")) {
+						container.classList.add("grayscale-tile");
+					}
+				});
 
-			return () => {
-				map.remove();
-			};
-		} catch (error) {
-			console.error("Error loading locate control:", error);
+				const topo = L.tileLayer(
+					"https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png",
+					{
+						attribution: "Map data: &copy; OpenTopoMap contributors",
+					}
+				);
 
-			const map = L.map(mapContainer).setView([0, 0], 2);
+				// Add default base layer
+				osm.addTo(map);
 
-			L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-				attribution: "&copy; OpenStreetMap contributors",
-			}).addTo(map);
+				// Overlay layers
+				const railway = L.tileLayer(
+					"https://{s}.tiles.openrailwaymap.org/standard/{z}/{x}/{y}.png",
+					{
+						attribution:
+							"© OpenRailwayMap contributors, © OpenStreetMap contributors",
+						maxZoom: 19,
+					}
+				);
 
-			return () => {
-				map.remove();
-			};
-		}
+				const markerLayer = L.layerGroup([
+					L.marker([51.5, -0.09]).bindPopup("Marker 1"),
+					L.marker([48.8566, 2.3522]).bindPopup("Marker 2"),
+				]);
+
+				// Add ORM overlay by default
+				railway.addTo(map);
+
+				// Layer control UI
+				const baseLayers = {
+					OpenStreetMap: osm,
+					"Grayscale OSM": osmGray,
+					OpenTopoMap: topo,
+				};
+
+				const overlays = {
+					OpenRailwayMap: railway,
+					Markers: markerLayer,
+				};
+
+				L.control
+					.layers(baseLayers, overlays, { position: "topright" })
+					.addTo(map);
+
+				(L.control as any)
+					.locate({
+						position: "topleft",
+						strings: {
+							title: "Show me where I am",
+						},
+						keepCurrentZoomLevel: true,
+						clickBehavior: {
+							inView: "setView",
+							outOfView: "setView",
+							inViewNotFollowing: "inView",
+						},
+						locateOptions: {
+							enableHighAccuracy: true,
+							maxZoom: 18,
+						},
+					})
+					.addTo(map);
+
+				map.on("locateactivate", () => {
+					console.log("📍 Locate control activated");
+					map?.setZoom(Math.max(Math.min(map.getZoom(), 18), 12));
+				});
+			} catch (err) {
+				console.error("Error initializing map with LocateControl:", err);
+
+				map = L.map(mapContainer).setView([0, 0], 2);
+				L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+					attribution: "&copy; OpenStreetMap contributors",
+				}).addTo(map);
+			}
+		};
+
+		initMap();
+
+		return () => {
+			map?.remove();
+		};
 	});
 </script>
 

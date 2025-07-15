@@ -6,6 +6,10 @@ body {
 	overflow: hidden;
 }
 
+.grayscale-tile {
+	filter: grayscale(100%);
+}
+
 .glass {
 	background: rgba(0, 0, 0, 0.3);
 	backdrop-filter: blur(10px);
