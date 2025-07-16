@@ -38,4 +38,4 @@ export const leafletOverlayLayers: { [key: string]: TileLayer | LayerGroup } = {
 // IDs for initial layers to be added to the map on load
 export const defaultBaseLayerId: string = "OSM Grayscale";
 // Add "Railroad Mileposts" to default overlays if you want it visible on load
-export const defaultOverlayIds: string[] = ["OpenRailwayMap"];
+export const defaultOverlayIds: string[] = ["OpenRailwayMap", "Railroad Mileposts"];

@@ -9,7 +9,7 @@
 		defaultBaseLayerId,
 		defaultOverlayIds,
 	} from "./layers";
-	import { addNearestRailroadPointsToMap } from "./fra-api-data-handler";
+	import { addMilepostPointsAndLines } from "./fra-api-data-handler";
 
 	let mapContainer: HTMLDivElement;
 	let map: Map;
@@ -118,11 +118,10 @@
 						"Railroad Mileposts"
 					] as L.LayerGroup;
 
-					await addNearestRailroadPointsToMap(
+					await addMilepostPointsAndLines(
 						railroadCrossingsLayer,
 						e.latlng.lat,
 						e.latlng.lng,
-						64,
 					);
 				});
 			} catch (err) {
