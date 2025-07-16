@@ -1,14 +1,15 @@
 {
-  "extends": "@tsconfig/svelte/tsconfig.json",
-  "compilerOptions": {
-    "types": ["svelte", "vite/client", "leaflet"],
-    "moduleResolution": "bundler",
-    "strict": true,
-    "baseUrl": ".",
-    "paths": {
-      "$lib/*": ["src/lib/*"]
-    }
-  },
-  "include": ["src", "src/types"],
-  "exclude": ["node_modules", "__sapper__", "public"]
+	"extends": "@tsconfig/svelte/tsconfig.json",
+	"compilerOptions": {
+		"types": ["svelte", "vite/client", "leaflet"],
+		"moduleResolution": "bundler",
+		"strict": true,
+		"baseUrl": ".",
+		"paths": {
+			"$lib": ["src/lib"],
+			"$lib/*": ["src/lib/*"]
+		}
+	},
+	"include": ["src", "src/types"],
+	"exclude": ["node_modules", "__sapper__", "public"]
 }

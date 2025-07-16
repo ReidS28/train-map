@@ -1,9 +1,18 @@
 <script lang="ts">
 	import { onMount } from "svelte";
-	import L, { Map } from "leaflet";
+	import L, { Map, Marker } from "leaflet";
 	import "leaflet/dist/leaflet.css";
 
+	import {
+		leafletBaseLayers,
+		leafletOverlayLayers,
+		defaultBaseLayerId,
+		defaultOverlayIds,
+	} from "./layers";
+	import { addNearestRailroadPointsToMap } from "./fra-api-data-handler";
+
 	let mapContainer: HTMLDivElement;
+	let map: Map;
 
 	delete (L.Icon.Default.prototype as any)._getIconUrl;
 	L.Icon.Default.mergeOptions({
@@ -50,6 +59,9 @@
 		});
 	}
 
+	const DEFAULT_TARGET_LAT = 0;
+	const DEFAULT_TARGET_LON = 0;
+
 	onMount(() => {
 		let map: Map;
 
@@ -59,71 +71,22 @@
 
 				map = L.map(mapContainer).setView([0, 0], 2);
 
-				// --Layers--
+				const initialBaseLayer = leafletBaseLayers[defaultBaseLayerId];
+				if (initialBaseLayer) {
+					initialBaseLayer.addTo(map);
+				}
 
-				// Base layers
-				const osm = L.tileLayer(
-					"https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-					{
-						attribution: "&copy; OpenStreetMap contributors",
-					}
-				);
-
-				const osmGray = L.tileLayer(
-					"https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-					{
-						attribution: "&copy; OpenStreetMap contributors",
-					}
-				);
-				osmGray.on("tileload", (event) => {
-					const container = osmGray.getContainer();
-					if (container && !container.classList.contains("grayscale-tile")) {
-						container.classList.add("grayscale-tile");
+				defaultOverlayIds.forEach((id) => {
+					const overlay = leafletOverlayLayers[id];
+					if (overlay) {
+						overlay.addTo(map);
 					}
 				});
 
-				const topo = L.tileLayer(
-					"https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png",
-					{
-						attribution: "Map data: &copy; OpenTopoMap contributors",
-					}
-				);
-
-				// Add default base layer
-				osm.addTo(map);
-
-				// Overlay layers
-				const railway = L.tileLayer(
-					"https://{s}.tiles.openrailwaymap.org/standard/{z}/{x}/{y}.png",
-					{
-						attribution:
-							"© OpenRailwayMap contributors, © OpenStreetMap contributors",
-						maxZoom: 19,
-					}
-				);
-
-				const markerLayer = L.layerGroup([
-					L.marker([51.5, -0.09]).bindPopup("Marker 1"),
-					L.marker([48.8566, 2.3522]).bindPopup("Marker 2"),
-				]);
-
-				// Add ORM overlay by default
-				railway.addTo(map);
-
-				// Layer control UI
-				const baseLayers = {
-					OpenStreetMap: osm,
-					"Grayscale OSM": osmGray,
-					OpenTopoMap: topo,
-				};
-
-				const overlays = {
-					OpenRailwayMap: railway,
-					Markers: markerLayer,
-				};
-
 				L.control
-					.layers(baseLayers, overlays, { position: "topright" })
+					.layers(leafletBaseLayers, leafletOverlayLayers, {
+						position: "topright",
+					})
 					.addTo(map);
 
 				(L.control as any)
@@ -149,6 +112,19 @@
 					console.log("📍 Locate control activated");
 					map?.setZoom(Math.max(Math.min(map.getZoom(), 18), 12));
 				});
+					
+				map.on("locationfound", async (e) => {
+					const railroadCrossingsLayer = leafletOverlayLayers[
+						"Railroad Mileposts"
+					] as L.LayerGroup;
+
+					await addNearestRailroadPointsToMap(
+						railroadCrossingsLayer,
+						e.latlng.lat,
+						e.latlng.lng,
+						64,
+					);
+				});
 			} catch (err) {
 				console.error("Error initializing map with LocateControl:", err);
 
@@ -173,6 +149,9 @@
 ></div>
 
 <style>
+	:global(.grayscale-tile) {
+		filter: grayscale(100%);
+	}
 	#map {
 		height: 100vh;
 		width: 100vw;
