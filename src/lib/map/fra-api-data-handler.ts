@@ -77,9 +77,9 @@ export async function addMilepostPointsAndLines(
 		} = {};
 
 		finalNearestPoints.forEach((item: RailroadPointWithDistance) => {
-			/*const point = item.data;
+			const point = item.data;
 			const lat = parseFloat(point.lat);
-			const lon = parseFloat(point.long);*/
+			const lon = parseFloat(point.long);
 			const railroadName = point.railroad || "Unknown Railroad";
 
 			/*const marker = L.marker([lat, lon]);
