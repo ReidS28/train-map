@@ -122,6 +122,8 @@
 						railroadCrossingsLayer,
 						e.latlng.lat,
 						e.latlng.lng,
+						100000,
+						600
 					);
 				});
 			} catch (err) {
