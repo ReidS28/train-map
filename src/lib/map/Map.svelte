@@ -123,7 +123,7 @@
 						e.latlng.lat,
 						e.latlng.lng,
 						100000,
-						600
+						200
 					);
 				});
 			} catch (err) {
