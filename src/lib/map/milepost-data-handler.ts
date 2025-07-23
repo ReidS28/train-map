@@ -18,8 +18,9 @@ interface simplifiedPoint {
 interface milepostPoint {
 	lat: number;
 	lon: number;
+	latLng: L.LatLng;
 	milepost: number;
-	distance: number;
+	distanceToUser: number;
 	data: any;
 }
 
@@ -67,23 +68,24 @@ export async function addMilepostPointsAndLines(
 				const milepost = parseFloat(point.milepost);
 
 				const pointLatLng = L.latLng(lat, lon);
-				const distance = targetLatLng.distanceTo(pointLatLng) / 1609.34;
+				const distanceToUser = targetLatLng.distanceTo(pointLatLng);
 
-				if (distance <= maxDistanceLimit && !isNaN(milepost)) {
-					point.milepost = milepost;
+				if (distanceToUser <= maxDistanceLimit * 1609.34 && !isNaN(milepost)) {
 					nearbyPoints.push({
 						lat: lat,
 						lon: lon,
+						latLng: pointLatLng,
 						milepost: milepost,
-						distance: distance,
+						distanceToUser: distanceToUser,
 						data: point,
 					});
 				}
 			}
 		});
 
+		// Limit Points
 		if (nearbyPoints.length > maxNearbyPoints) {
-			nearbyPoints.sort((a, b) => a.distance - b.distance);
+			nearbyPoints.sort((a, b) => a.distanceToUser - b.distanceToUser);
 			nearbyPoints = nearbyPoints.slice(0, maxNearbyPoints);
 		}
 
@@ -114,7 +116,7 @@ export async function addMilepostPointsAndLines(
 		railLineGroups.forEach((railroadGroup) => {
 			railroadGroup.forEach((railLine, index, parentArray) => {
 				if (railLine.length > maxPointsPerLine) {
-					railLine.sort((a, b) => a.distance - b.distance);
+					railLine.sort((a, b) => a.distanceToUser - b.distanceToUser);
 					parentArray[index] = railLine.slice(0, maxPointsPerLine);
 				}
 			});
@@ -123,55 +125,35 @@ export async function addMilepostPointsAndLines(
 		// Reset layer
 		layerGroup.clearLayers();
 
+		// Remove later
 		drawPolylinesForRailLines(railLineGroups, layerGroup);
-
-		for (const railroadName in railroadGroups) {
-			if (railroadGroups.hasOwnProperty(railroadName)) {
-				drawPolylinesForRailLines(railLineGroups, layerGroup);
-			}
-		}
 
 		// Plot Markers
 		railLineGroups.forEach((railroadGroup) => {
-			railroadGroup.forEach((railLine) => {
-				railLine.forEach((point) => {
-					const marker = L.marker([point.lat, point.lon]);
+			railLineGroups.forEach((railroadGroup) => {
+				for (let i = railroadGroup.length - 1; i >= 0; i--) {
+					const railLine = railroadGroup[i];
 
-					const popupContent = `
-				<b>Railroad:</b> ${point.data.railroad}<br>
-				<b>Milepost:</b> ${Number.isFinite(point.milepost) ? point.milepost : "N/A"}<br>
-				<b>State:</b> ${point.data.stateab || "N/A"}<br>
-				<b>Distance:</b> ${point.distance.toLocaleString(undefined, {
-					maximumFractionDigits: 0,
-				})} meters<br>
-				<small>ID: ${point.data.objectid || "N/A"}</small>
-			`;
-					marker.bindPopup(popupContent);
+					if (railLine.length === 2) {
+						const point = getClosestPointOnLine(
+							railLine[0],
+							railLine[1],
+							targetLatLng
+						);
 
-					layerGroup.addLayer(marker);
-				});
+						if (point != null) {
+							plotMilepostPoint(point, layerGroup);
+						} else {
+							// Remove current rail line
+							railroadGroup.splice(i, 1);
+						}
+					}
+				}
 			});
 		});
-		/*const marker = L.marker([lat, lon]);
 
-			const popupContent = `
-				<b>Railroad:</b> ${railroadName}<br>
-				<b>Milepost:</b> ${
-										Number.isFinite(point.milepost) ? point.milepost : "N/A"
-									}<br>
-				<b>State:</b> ${point.stateab || "N/A"}<br>
-				<b>Distance:</b> ${item.distance.toLocaleString(undefined, {
-										maximumFractionDigits: 0,
-									})} meters<br>
-				<small>ID: ${point.objectid || "N/A"}</small>
-			`;
-			marker.bindPopup(popupContent);
+		drawPolylinesForRailLines(railLineGroups, layerGroup);
 
-			layerGroup.addLayer(marker);*/
-
-		console.log(
-			`Loaded and displayed ${nearbyPoints.length} nearest railroad points.`
-		);
 	} catch (error) {
 		console.error("Error fetching or processing railroad data:", error);
 	}
@@ -190,9 +172,74 @@ function getRandomColor(): string {
 	return color;
 }
 
-/*function placeMarkers(points: ){
+function plotMilepostPoint(point: milepostPoint, layerGroup: L.LayerGroup) {
+	const marker = L.marker([point.lat, point.lon]);
 
-}*/
+	const popupContent = `
+				<b>Railroad:</b> ${point.data.railroad}<br>
+				<b>Milepost:</b> ${Number.isFinite(point.milepost) ? point.milepost : "N/A"}<br>
+				<b>State:</b> ${point.data.stateab || "N/A"}<br>
+				<small>ID: ${point.data.objectid || "N/A"}</small>
+			`;
+	marker.bindPopup(popupContent);
+
+	layerGroup.addLayer(marker);
+}
+
+function getClosestPointOnLine(
+	linePoint1: milepostPoint,
+	linePoint2: milepostPoint,
+	anchorPoint: L.LatLng
+): milepostPoint | null {
+	// Convert to simple XY plane for calculation
+	const x1 = linePoint1.lon;
+	const y1 = linePoint1.lat;
+	const x2 = linePoint2.lon;
+	const y2 = linePoint2.lat;
+	const x0 = anchorPoint.lng;
+	const y0 = anchorPoint.lat;
+
+	// Vector from linePoint1 to linePoint2
+	const dx = x2 - x1;
+	const dy = y2 - y1;
+
+	// Handle zero-length segment
+	const lenSq = dx * dx + dy * dy;
+	if (lenSq === 0) {
+		return { ...linePoint1 };
+	}
+
+	// Projection factor (clamped between 0 and 1 for segment)
+	let t = ((x0 - x1) * dx + (y0 - y1) * dy) / lenSq;
+	t = Math.max(0, Math.min(1, t));
+
+	// Closest point
+	const closestX = x1 + t * dx;
+	const closestY = y1 + t * dy;
+
+	const EPS = 1e-9;
+	function nearlyEqual(a: number, b: number, epsilon = EPS) {
+		return Math.abs(a - b) < epsilon;
+	}
+
+	if (
+		(nearlyEqual(closestX, linePoint1.lon) &&
+			nearlyEqual(closestY, linePoint1.lat)) ||
+		(nearlyEqual(closestX, linePoint2.lon) &&
+			nearlyEqual(closestY, linePoint2.lat))
+	) {
+		return null;
+	}
+
+	return {
+		lat: closestY,
+		lon: closestX,
+		latLng: L.latLng(closestY, closestX),
+		milepost: 69, //linePoint1.milepost,
+		distanceToUser: linePoint1.distanceToUser,
+		data: linePoint1.data,
+	};
+}
 
 /**
  * Split all points from a given railroad into seprate rail lines

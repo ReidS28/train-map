@@ -9,7 +9,7 @@
 		defaultBaseLayerId,
 		defaultOverlayIds,
 	} from "./layers";
-	import { addMilepostPointsAndLines } from "./fra-api-data-handler";
+	import { addMilepostPointsAndLines } from "./milepost-data-handler";
 
 	let mapContainer: HTMLDivElement;
 	let map: Map;
