@@ -125,8 +125,17 @@ export async function addMilepostPointsAndLines(
 		// Reset layer
 		layerGroup.clearLayers();
 
-		// Remove later
-		drawPolylinesForRailLines(railLineGroups, layerGroup);
+		plotMilepostPoint(
+			{
+				lat: targetLat,
+				lon: targetLon,
+				latLng: targetLatLng,
+				milepost: -1,
+				distanceToUser: 0,
+				data: null,
+			},
+			layerGroup
+		);
 
 		// Plot Markers
 		railLineGroups.forEach((railroadGroup) => {
@@ -144,7 +153,6 @@ export async function addMilepostPointsAndLines(
 						if (point != null) {
 							plotMilepostPoint(point, layerGroup);
 						} else {
-							// Remove current rail line
 							railroadGroup.splice(i, 1);
 						}
 					}
@@ -153,7 +161,6 @@ export async function addMilepostPointsAndLines(
 		});
 
 		drawPolylinesForRailLines(railLineGroups, layerGroup);
-
 	} catch (error) {
 		console.error("Error fetching or processing railroad data:", error);
 	}
@@ -175,12 +182,17 @@ function getRandomColor(): string {
 function plotMilepostPoint(point: milepostPoint, layerGroup: L.LayerGroup) {
 	const marker = L.marker([point.lat, point.lon]);
 
-	const popupContent = `
-				<b>Railroad:</b> ${point.data.railroad}<br>
-				<b>Milepost:</b> ${Number.isFinite(point.milepost) ? point.milepost : "N/A"}<br>
-				<b>State:</b> ${point.data.stateab || "N/A"}<br>
-				<small>ID: ${point.data.objectid || "N/A"}</small>
-			`;
+	let popupContent;
+	if (point.milepost == -1) {
+		popupContent = `<b>Anchor Point</b>`
+	} else {
+		popupContent = `
+		<b>Railroad:</b> ${point.data.railroad}<br>
+		<b>Milepost:</b> ${Number.isFinite(point.milepost) ? point.milepost : "N/A"}<br>
+		<b>State:</b> ${point.data.stateab || "N/A"}<br>
+		<small>ID: ${point.data.objectid || "N/A"}</small>
+		`;
+	}
 	marker.bindPopup(popupContent);
 
 	layerGroup.addLayer(marker);
@@ -191,31 +203,41 @@ function getClosestPointOnLine(
 	linePoint2: milepostPoint,
 	anchorPoint: L.LatLng
 ): milepostPoint | null {
-	// Convert to simple XY plane for calculation
-	const x1 = linePoint1.lon;
-	const y1 = linePoint1.lat;
-	const x2 = linePoint2.lon;
-	const y2 = linePoint2.lat;
-	const x0 = anchorPoint.lng;
-	const y0 = anchorPoint.lat;
+	// Get average latitude for conversion
+	const avgLat = (linePoint1.lat + linePoint2.lat) / 2;
 
-	// Vector from linePoint1 to linePoint2
+	// Approximate conversion to meters (more accurate for short distances)
+	const latToMeters = 111320; // meters per degree latitude
+	const lonToMeters = 111320 * Math.cos((avgLat * Math.PI) / 180); // meters per degree longitude
+
+	// Convert to meters
+	const x1 = linePoint1.lon * lonToMeters;
+	const y1 = linePoint1.lat * latToMeters;
+	const x2 = linePoint2.lon * lonToMeters;
+	const y2 = linePoint2.lat * latToMeters;
+	const x0 = anchorPoint.lng * lonToMeters;
+	const y0 = anchorPoint.lat * latToMeters;
+
+	// Rest of your calculation stays the same
 	const dx = x2 - x1;
 	const dy = y2 - y1;
 
-	// Handle zero-length segment
 	const lenSq = dx * dx + dy * dy;
 	if (lenSq === 0) {
 		return { ...linePoint1 };
 	}
 
-	// Projection factor (clamped between 0 and 1 for segment)
 	let t = ((x0 - x1) * dx + (y0 - y1) * dy) / lenSq;
 	t = Math.max(0, Math.min(1, t));
 
-	// Closest point
-	const closestX = x1 + t * dx;
-	const closestY = y1 + t * dy;
+	// Convert back to lat/lng
+	const closestX = (x1 + t * dx) / lonToMeters;
+	const closestY = (y1 + t * dy) / latToMeters;
+
+	const milepost =
+		Math.round(
+			(linePoint1.milepost * t + linePoint2.milepost * (1 - t)) * 100
+		) / 100;
 
 	const EPS = 1e-9;
 	function nearlyEqual(a: number, b: number, epsilon = EPS) {
@@ -235,7 +257,7 @@ function getClosestPointOnLine(
 		lat: closestY,
 		lon: closestX,
 		latLng: L.latLng(closestY, closestX),
-		milepost: 69, //linePoint1.milepost,
+		milepost: milepost,
 		distanceToUser: linePoint1.distanceToUser,
 		data: linePoint1.data,
 	};

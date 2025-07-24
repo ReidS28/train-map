@@ -112,20 +112,69 @@
 					console.log("📍 Locate control activated");
 					map?.setZoom(Math.max(Math.min(map.getZoom(), 18), 12));
 				});
-					
-				map.on("locationfound", async (e) => {
+
+				// Create custom control for milepost button
+				const MilepostControl = L.Control.extend({
+					onAdd: function (map: Map) {
+						const container = L.DomUtil.create(
+							"div",
+							"leaflet-bar leaflet-control leaflet-control-custom"
+						);
+
+						const button = L.DomUtil.create("a", "", container);
+						button.innerHTML = "📍"; // You can use any icon/text
+						button.href = "#";
+						button.title = "Add Milepost Points";
+						button.style.backgroundColor = "white";
+						button.style.width = "30px";
+						button.style.height = "30px";
+						button.style.lineHeight = "30px";
+						button.style.textAlign = "center";
+						button.style.textDecoration = "none";
+						button.style.color = "black";
+						button.style.display = "block";
+
+						L.DomEvent.on(button, "click", function (e) {
+							L.DomEvent.stopPropagation(e);
+							L.DomEvent.preventDefault(e);
+
+							// Call your function here
+							const railroadCrossingsLayer = leafletOverlayLayers[
+								"Railroad Mileposts"
+							] as L.LayerGroup;
+							const center = map.getCenter();
+							addMilepostPointsAndLines(
+								railroadCrossingsLayer,
+								center.lat,
+								center.lng
+							);
+						});
+
+						return container;
+					},
+
+					onRemove: function (map: Map) {
+						// Nothing to do here
+					},
+				});
+
+				// Add the control to the map
+				const milepostControl = new MilepostControl({ position: "topleft" });
+				milepostControl.addTo(map);
+
+				/*map.addEventListener("moveend", async () => {
 					const railroadCrossingsLayer = leafletOverlayLayers[
 						"Railroad Mileposts"
 					] as L.LayerGroup;
 
+					const center = map.getCenter();
+
 					await addMilepostPointsAndLines(
 						railroadCrossingsLayer,
-						e.latlng.lat,
-						e.latlng.lng,
-						//100000,
-						//100
+						center.lat,
+						center.lng
 					);
-				});
+				});*/
 			} catch (err) {
 				console.error("Error initializing map with LocateControl:", err);
 
@@ -163,5 +212,13 @@
 		height: 100%;
 		width: 100%;
 		overflow: hidden;
+	}
+
+	.leaflet-control-custom {
+		margin-top: 10px !important; /* Add space below locate control */
+	}
+
+	.leaflet-control-custom a:hover {
+		background-color: #f4f4f4 !important;
 	}
 </style>
