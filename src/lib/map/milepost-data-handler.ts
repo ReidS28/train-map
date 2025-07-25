@@ -180,21 +180,73 @@ function getRandomColor(): string {
 }
 
 function plotMilepostPoint(point: milepostPoint, layerGroup: L.LayerGroup) {
-	const marker = L.marker([point.lat, point.lon]);
+	const label = point.milepost === -1 ? "T" : point.milepost;
+	let iconHtml;
 
-	let popupContent;
-	if (point.milepost == -1) {
-		popupContent = `<b>Anchor Point</b>`
+	if (point.milepost !== -1) {
+		iconHtml = `
+		<div style="position: relative; display: inline-block; padding-left: 12px;">
+			<div style="
+				position: absolute;
+				top: 0;
+				left: 0;
+				width: 8px;
+				height: 8px;
+				background: #0078ff;
+				border-radius: 50%;
+				box-shadow: 0 0 2px rgba(0,0,0,0.5);
+				border: 2px solid white;
+			"></div>
+			<div style="
+				background: #0078ff;
+				color: white;
+				font-size: 12px;
+				font-weight: bold;
+				border-radius: 100vw; /* pill shape */
+				padding: 0px 4px;
+				border: 2px solid white;
+				box-shadow: 0 0 4px rgba(0,0,0,0.3);
+				white-space: nowrap;
+			">
+			${label}
+			</div>
+		</div>
+		`;
 	} else {
-		popupContent = `
-		<b>Railroad:</b> ${point.data.railroad}<br>
-		<b>Milepost:</b> ${Number.isFinite(point.milepost) ? point.milepost : "N/A"}<br>
-		<b>State:</b> ${point.data.stateab || "N/A"}<br>
-		<small>ID: ${point.data.objectid || "N/A"}</small>
+		iconHtml = `
+		<div style="position: relative; display: flex; align-items: center;">
+		<div style="
+		width: 12px;
+		height: 12px;
+		background: #00ff77b5;
+		border-radius: 50%;
+		border: 60% solid white;
+		box-shadow: 0 0 2px rgba(0,0,0,0.5);
+		"></div>
+		</div>
 		`;
 	}
-	marker.bindPopup(popupContent);
 
+	const customIcon = L.divIcon({
+		className: "",
+		html: iconHtml,
+	});
+
+	const marker = L.marker([point.lat, point.lon], { icon: customIcon });
+
+	const popupContent =
+		point.milepost == -1
+			? `<b>Target</b>`
+			: `
+        <b>Railroad:</b> ${point.data.railroad}<br>
+        <b>Milepost:</b> ${
+					Number.isFinite(point.milepost) ? point.milepost : "N/A"
+				}<br>
+        <b>State:</b> ${point.data.stateab || "N/A"}<br>
+        <small>ID: ${point.data.objectid || "N/A"}</small>
+    `;
+
+	marker.bindPopup(popupContent);
 	layerGroup.addLayer(marker);
 }
 
@@ -218,7 +270,6 @@ function getClosestPointOnLine(
 	const x0 = anchorPoint.lng * lonToMeters;
 	const y0 = anchorPoint.lat * latToMeters;
 
-	// Rest of your calculation stays the same
 	const dx = x2 - x1;
 	const dy = y2 - y1;
 
@@ -230,13 +281,12 @@ function getClosestPointOnLine(
 	let t = ((x0 - x1) * dx + (y0 - y1) * dy) / lenSq;
 	t = Math.max(0, Math.min(1, t));
 
-	// Convert back to lat/lng
 	const closestX = (x1 + t * dx) / lonToMeters;
 	const closestY = (y1 + t * dy) / latToMeters;
 
 	const milepost =
 		Math.round(
-			(linePoint1.milepost * t + linePoint2.milepost * (1 - t)) * 100
+			(linePoint1.milepost * (1 - t) + linePoint2.milepost * (t)) * 100
 		) / 100;
 
 	const EPS = 1e-9;
@@ -333,7 +383,7 @@ function drawPolylinesForRailLines(
 	railLines.forEach((railroad) => {
 		railroad.forEach((railLine) => {
 			railLine.sort((a, b) => a.milepost - b.milepost);
-			drawSinglePolylineSegment(railLine, layerGroup, getRandomColor());
+			drawSinglePolylineSegment(railLine, layerGroup, '#0078ff');
 		});
 	});
 }

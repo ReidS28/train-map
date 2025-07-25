@@ -162,7 +162,7 @@
 				const milepostControl = new MilepostControl({ position: "topleft" });
 				milepostControl.addTo(map);
 
-				/*map.addEventListener("moveend", async () => {
+				map.addEventListener("moveend", async () => {
 					const railroadCrossingsLayer = leafletOverlayLayers[
 						"Railroad Mileposts"
 					] as L.LayerGroup;
@@ -174,7 +174,7 @@
 						center.lat,
 						center.lng
 					);
-				});*/
+				});
 			} catch (err) {
 				console.error("Error initializing map with LocateControl:", err);
 
@@ -214,11 +214,4 @@
 		overflow: hidden;
 	}
 
-	.leaflet-control-custom {
-		margin-top: 10px !important; /* Add space below locate control */
-	}
-
-	.leaflet-control-custom a:hover {
-		background-color: #f4f4f4 !important;
-	}
 </style>
