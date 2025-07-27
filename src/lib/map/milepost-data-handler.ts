@@ -1,19 +1,11 @@
-import L, { point } from "leaflet";
+import L from "leaflet";
 
 const RAILROAD_API_URL =
 	"https://data.transportation.gov/resource/ugux-y9xm.json?$limit=200000";
 
-/*interface RailroadPointWithDistance {
-	data: any; // The original railroad data object
-	distance: number; // Distance in meters from the target location
-}
-
-interface simplifiedPoint {
-	lat: number;
-	lon: number;
-	milepost: number;
-	data: any;
-}*/
+let railLines: milepostPoint[][] = [];
+let dataLatLng: L.LatLng;
+let centerPoint: L.Marker;
 
 interface milepostPoint {
 	lat: number;
@@ -24,34 +16,128 @@ interface milepostPoint {
 	data: any;
 }
 
-/**
- * Fetches railroad crossing data, finds the nearest points within a distance limit,
- * groups them by railroad, sorts each group by milepost, adds markers,
- * and draws polylines for each railroad.
- *
- * @param layerGroup The Leaflet LayerGroup to add the markers and polylines to.
- * @param targetLat The latitude of the location to measure distance from.
- * @param targetLon The longitude of the location to measure distance from.
- * @param maxNearbyPoints The maximum number of nearest points overall to display (default: 1000).
- * @param maxDistanceLimit The maximum distance in miles from the target to include points (default: 10 miles).
- * @param maxPointsPerLine The maximum number of nearest points per rail line to display (default: 3).
- */
-export async function addMilepostPointsAndLines(
+export async function updateCenterPoint(
+	layerGroup: L.LayerGroup,
+	targetLat: number,
+	targetLon: number
+): Promise<void> {
+	try {
+		const targetLatLng = L.latLng(targetLat, targetLon);
+
+		// Reset center point
+		if (centerPoint) layerGroup.removeLayer(centerPoint);
+
+		// Plot Center Point
+		plotMilepostPoint(
+			{
+				lat: targetLat,
+				lon: targetLon,
+				latLng: targetLatLng,
+				milepost: -1,
+				distanceToUser: 0,
+				data: null,
+			},
+			layerGroup
+		);
+	} catch (error) {
+		console.error("Error plotting center point:", error);
+	}
+}
+
+export async function updateMilepostMarkers(
 	layerGroup: L.LayerGroup,
 	targetLat: number,
 	targetLon: number,
+	force: boolean = false,
 	maxNearbyPoints: number = 1000,
-	maxDistanceLimit: number = 10,
-	maxPointsPerLine: number = 2
+	maxDistanceLimit: number = 10
 ): Promise<void> {
+	try {
+		const targetLatLng = L.latLng(targetLat, targetLon);
+
+		if (
+			force ||
+			railLines.length <= 1 ||
+			targetLatLng.distanceTo(dataLatLng) >= 8000
+		) {
+			railLines = await getMilepostData(
+				targetLatLng,
+				maxNearbyPoints,
+				maxDistanceLimit
+			);
+		} else {
+			for (const railLine of railLines) {
+				for (const point of railLine) {
+					point.distanceToUser = targetLatLng.distanceTo(point.latLng);
+				}
+			}
+		}
+
+		// Limit points per rail line to 2
+		let nearbyRailLines: milepostPoint[][] = [];
+		railLines.forEach((railLine, index) => {
+			if (railLine.length >= 2) {
+				nearbyRailLines.push(
+					[...railLine]
+						.sort((a, b) => a.distanceToUser - b.distanceToUser)
+						.slice(0, 2)
+				);
+			}
+		});
+
+		// Reset layer
+		layerGroup.clearLayers();
+
+		// Plot Center Point
+		plotMilepostPoint(
+			{
+				lat: targetLat,
+				lon: targetLon,
+				latLng: targetLatLng,
+				milepost: -1,
+				distanceToUser: 0,
+				data: null,
+			},
+			layerGroup
+		);
+
+		// Plot Markers
+		for (let i = nearbyRailLines.length - 1; i >= 0; i--) {
+			const railLine = nearbyRailLines[i];
+
+			if (railLine.length === 2) {
+				const nearestPoint = getClosestPointOnLine(
+					railLine[0],
+					railLine[1],
+					targetLatLng
+				);
+
+				if (nearestPoint != null) {
+					plotMilepostPoint(nearestPoint, layerGroup);
+				} else {
+					nearbyRailLines.splice(i, 1);
+				}
+			}
+		}
+
+		drawPolylinesForRailLines(nearbyRailLines, layerGroup);
+	} catch (error) {
+		console.error("Error fetching or processing railroad data:", error);
+	}
+}
+
+async function getMilepostData(
+	targetLatLng: L.LatLng,
+	maxNearbyPoints: number = 1000,
+	maxDistanceLimit: number = 10
+): Promise<milepostPoint[][]> {
+	dataLatLng = targetLatLng;
 	try {
 		const response = await fetch(RAILROAD_API_URL);
 		if (!response.ok) {
 			throw new Error(`HTTP error! status: ${response.status}`);
 		}
 		const railroadData = await response.json();
-
-		const targetLatLng = L.latLng(targetLat, targetLon);
 
 		let nearbyPoints: milepostPoint[] = [];
 
@@ -107,76 +193,17 @@ export async function addMilepostPointsAndLines(
 		});
 
 		// Group by rail Line
-		const railLineGroups = Array<milepostPoint[][]>();
+		const railLineGroups: milepostPoint[][] = [];
 		Object.values(railroadGroups).forEach((railroadGroup: milepostPoint[]) => {
-			railLineGroups.push(splitRailroadToRailLines(railroadGroup));
+			const lines = splitRailroadToRailLines(railroadGroup);
+			railLineGroups.push(...lines);
 		});
 
-		// Limit points per rail line
-		railLineGroups.forEach((railroadGroup) => {
-			railroadGroup.forEach((railLine, index, parentArray) => {
-				if (railLine.length > maxPointsPerLine) {
-					railLine.sort((a, b) => a.distanceToUser - b.distanceToUser);
-					parentArray[index] = railLine.slice(0, maxPointsPerLine);
-				}
-			});
-		});
-
-		// Reset layer
-		layerGroup.clearLayers();
-
-		plotMilepostPoint(
-			{
-				lat: targetLat,
-				lon: targetLon,
-				latLng: targetLatLng,
-				milepost: -1,
-				distanceToUser: 0,
-				data: null,
-			},
-			layerGroup
-		);
-
-		// Plot Markers
-		railLineGroups.forEach((railroadGroup) => {
-			railLineGroups.forEach((railroadGroup) => {
-				for (let i = railroadGroup.length - 1; i >= 0; i--) {
-					const railLine = railroadGroup[i];
-
-					if (railLine.length === 2) {
-						const point = getClosestPointOnLine(
-							railLine[0],
-							railLine[1],
-							targetLatLng
-						);
-
-						if (point != null) {
-							plotMilepostPoint(point, layerGroup);
-						} else {
-							railroadGroup.splice(i, 1);
-						}
-					}
-				}
-			});
-		});
-
-		drawPolylinesForRailLines(railLineGroups, layerGroup);
+		return railLineGroups;
 	} catch (error) {
 		console.error("Error fetching or processing railroad data:", error);
+		return [];
 	}
-}
-
-/**
- * Helper function to generate a random hex color.
- * @returns A random hex color string (e.g., "#RRGGBB").
- */
-function getRandomColor(): string {
-	const letters = "0123456789ABCDEF";
-	let color = "#";
-	for (let i = 0; i < 6; i++) {
-		color += letters[Math.floor(Math.random() * 16)];
-	}
-	return color;
 }
 
 function plotMilepostPoint(point: milepostPoint, layerGroup: L.LayerGroup) {
@@ -214,16 +241,15 @@ function plotMilepostPoint(point: milepostPoint, layerGroup: L.LayerGroup) {
 		`;
 	} else {
 		iconHtml = `
-		<div style="position: relative; display: flex; align-items: center;">
 		<div style="
+		position: absolute;
 		width: 12px;
 		height: 12px;
 		background: #00ff77b5;
 		border-radius: 50%;
-		border: 60% solid white;
+		border: 2px solid white;
 		box-shadow: 0 0 2px rgba(0,0,0,0.5);
 		"></div>
-		</div>
 		`;
 	}
 
@@ -248,6 +274,7 @@ function plotMilepostPoint(point: milepostPoint, layerGroup: L.LayerGroup) {
 
 	marker.bindPopup(popupContent);
 	layerGroup.addLayer(marker);
+	if (point.milepost == -1) centerPoint = marker;
 }
 
 function getClosestPointOnLine(
@@ -286,7 +313,7 @@ function getClosestPointOnLine(
 
 	const milepost =
 		Math.round(
-			(linePoint1.milepost * (1 - t) + linePoint2.milepost * (t)) * 100
+			(linePoint1.milepost * (1 - t) + linePoint2.milepost * t) * 100
 		) / 100;
 
 	const EPS = 1e-9;
@@ -313,10 +340,6 @@ function getClosestPointOnLine(
 	};
 }
 
-/**
- * Split all points from a given railroad into seprate rail lines
- * @param points all points from a given railroad
- */
 function splitRailroadToRailLines(
 	points: milepostPoint[]
 ): Array<milepostPoint[]> {
@@ -369,32 +392,16 @@ function splitRailroadToRailLines(
 	return railLines;
 }
 
-/**
- * Draws all polylines for a given railroad by first segmenting its points.
- * @param railroadPoints An array of points for a single railroad, assumed to be sorted by milepost.
- * @param railroadName The name of the railroad.
- * @param layerGroup The Leaflet LayerGroup to add the polylines to.
- * @param railroadColor The color to use for all segments of this railroad.
- */
 function drawPolylinesForRailLines(
-	railLines: milepostPoint[][][],
+	railLines: milepostPoint[][],
 	layerGroup: L.LayerGroup
 ) {
-	railLines.forEach((railroad) => {
-		railroad.forEach((railLine) => {
-			railLine.sort((a, b) => a.milepost - b.milepost);
-			drawSinglePolylineSegment(railLine, layerGroup, '#0078ff');
-		});
+	railLines.forEach((railLine) => {
+		railLine.sort((a, b) => a.milepost - b.milepost);
+		drawSinglePolylineSegment(railLine, layerGroup, "#0078ff");
 	});
 }
 
-/**
- * Helper function to draw a single polyline segment.
- * @param segmentPoints An array of points for the current line segment.
- * @param railroadName The name of the railroad for the segment.
- * @param layerGroup The Leaflet LayerGroup to add the polyline to.
- * @param lineColor The color for this polyline segment.
- */
 function drawSinglePolylineSegment(
 	segmentPoints: milepostPoint[],
 	layerGroup: L.LayerGroup,

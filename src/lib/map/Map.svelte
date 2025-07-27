@@ -9,7 +9,7 @@
 		defaultBaseLayerId,
 		defaultOverlayIds,
 	} from "./layers";
-	import { addMilepostPointsAndLines } from "./milepost-data-handler";
+	import { updateCenterPoint, updateMilepostMarkers } from "./milepost-data-handler";
 
 	let mapContainer: HTMLDivElement;
 	let map: Map;
@@ -143,7 +143,7 @@
 								"Railroad Mileposts"
 							] as L.LayerGroup;
 							const center = map.getCenter();
-							addMilepostPointsAndLines(
+							updateMilepostMarkers(
 								railroadCrossingsLayer,
 								center.lat,
 								center.lng
@@ -162,19 +162,32 @@
 				const milepostControl = new MilepostControl({ position: "topleft" });
 				milepostControl.addTo(map);
 
+				const railroadCrossingsLayer = leafletOverlayLayers[
+					"Railroad Mileposts"
+				] as L.LayerGroup;
+
 				map.addEventListener("moveend", async () => {
-					const railroadCrossingsLayer = leafletOverlayLayers[
-						"Railroad Mileposts"
-					] as L.LayerGroup;
 
 					const center = map.getCenter();
 
-					await addMilepostPointsAndLines(
+					await updateMilepostMarkers(
 						railroadCrossingsLayer,
 						center.lat,
-						center.lng
+						center.lng,
 					);
 				});
+
+				map.addEventListener("move", async () => {
+
+					const center = map.getCenter();
+
+					await updateCenterPoint(
+						railroadCrossingsLayer,
+						center.lat,
+						center.lng,
+					);
+				});
+
 			} catch (err) {
 				console.error("Error initializing map with LocateControl:", err);
 
@@ -213,5 +226,4 @@
 		width: 100%;
 		overflow: hidden;
 	}
-
 </style>
