@@ -1,8 +1,8 @@
 <template>
-	<div
-		ref="mapContainer"
-		class="map-container"
-	></div>
+        <div
+                ref="mapContainer"
+                class="map-container"
+        ></div>
 </template>
 
 <script lang="ts" setup>
@@ -15,72 +15,69 @@ const mapContainer = ref<HTMLDivElement | null>(null);
 let map: Map | null = null;
 
 onMounted(() => {
-	if (!mapContainer.value) return;
+        if (!mapContainer.value) return;
 
-	// Initialize PMTiles protocol
-	const protocol = new Protocol();
-	maplibregl.addProtocol("pmtiles", protocol.tile);
+        try {
+                // Initialize PMTiles protocol
+                const protocol = new Protocol();
+                maplibregl.addProtocol("pmtiles", protocol.tile);
 
-	// Create MapLibre GL map
-	map = new maplibregl.Map({
-		container: mapContainer.value,
-		style: {
-			version: 8,
-			sources: {
-				protomaps: {
-					type: "vector",
-					url: "pmtiles://https://demo-bucket.protomaps.com/v4.pmtiles",
-				},
-			},
-			layers: [
-				{
-					id: "land-layer",
-					type: "fill",
-					source: "protomaps",
-					"source-layer": "land", // This is a default layer in the PMTiles file
-					paint: {
-						"fill-color": "#e0e0e0",
-						"fill-opacity": 1,
-					},
-				},
-				{
-					id: "water-layer",
-					type: "fill",
-					source: "protomaps",
-					"source-layer": "water",
-					paint: {
-						"fill-color": "#a0c8f0",
-						"fill-opacity": 1,
-					},
-				},
-				{
-					id: "road-layer",
-					type: "line",
-					source: "protomaps",
-					"source-layer": "road",
-					paint: {
-						"line-color": "#c0c0c0",
-						"line-width": 1,
-					},
-				},
-			],
-		},
-		center: [0, 0],
-		zoom: 2,
-	});
+                // Create MapLibre GL map with error handling
+                map = new maplibregl.Map({
+                        container: mapContainer.value,
+                        style: {
+                                version: 8,
+                                sources: {
+                                        "osm-bright": {
+                                                type: "raster",
+                                                tiles: [
+                                                        "https://a.tile.openstreetmap.org/{z}/{x}/{y}.png",
+                                                        "https://b.tile.openstreetmap.org/{z}/{x}/{y}.png",
+                                                        "https://c.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                                                ],
+                                                tileSize: 256,
+                                                attribution: "© OpenStreetMap contributors"
+                                        }
+                                },
+                                layers: [
+                                        {
+                                                id: "osm",
+                                                type: "raster",
+                                                source: "osm-bright",
+                                                minzoom: 0,
+                                                maxzoom: 18
+                                        }
+                                ]
+                        },
+                        center: [0, 0],
+                        zoom: 2,
+                });
 
-	// Add zoom controls
-	map.addControl(new maplibregl.NavigationControl());
+                // Add error handling
+                map.on('error', (e) => {
+                        console.error('Map error:', e);
+                });
+
+                // Add load event
+                map.on('load', () => {
+                        console.log('Map loaded successfully');
+                });
+
+                // Add zoom controls
+                map.addControl(new maplibregl.NavigationControl());
+        } catch (error) {
+                console.error('Error initializing map:', error);
+        }
 });
 
 onBeforeUnmount(() => {
-	map?.remove();
+        map?.remove();
 });
 </script>
 
 <style scoped>
 .map-container {
-	width: 100%;
-	height: 100vh;
+        width: 100%;
+        height: 100vh;
 }
 </style>
