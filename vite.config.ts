@@ -8,7 +8,8 @@ export default defineConfig({
     port: 5000,
     hmr: {
       port: 5000
-    }
+    },
+    allowedHosts: ['all']
   },
   optimizeDeps: {
     include: ['maplibre-gl']
