@@ -25,8 +25,26 @@ onMounted(async () => {
 		zoom: 10,
 	});
 
-
 	map.addControl(new maplibregl.NavigationControl(), "top-right");
+
+	let geolocate = new maplibregl.GeolocateControl({
+		positionOptions: {
+				enableHighAccuracy: true
+		},
+		trackUserLocation: true
+	});
+	map.addControl(geolocate, "top-right");
+
+	map.addControl(new maplibregl.FullscreenControl({container: document.querySelector('body')}), "top-right");
+
+	map.addControl(new maplibregl.GlobeControl(), "top-right");
+
+	let scale = new maplibregl.ScaleControl({
+			maxWidth: 240,
+			unit: 'metric'
+	});
+	map.addControl(scale);
+	
 });
 
 onBeforeUnmount(() => {
@@ -37,6 +55,6 @@ onBeforeUnmount(() => {
 <style scoped>
 .map-container {
 	width: 100%;
-	height: 100vh;
+	height: 95vh
 }
 </style>

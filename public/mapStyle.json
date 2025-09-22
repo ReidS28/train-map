@@ -226,7 +226,8 @@
       "source": "protomaps",
       "source-layer": "landuse",
       "filter": ["==", "kind", "pier"],
-      "paint": {"fill-color": "#0a0a0a"}
+      "layout": {"visibility": "visible"},
+      "paint": {"fill-color": "rgba(80, 58, 39, 1)"}
     },
     {
       "id": "roads_tunnels_other_casing",
@@ -519,7 +520,7 @@
       "source-layer": "roads",
       "filter": ["==", "kind_detail", "pier"],
       "paint": {
-        "line-color": "#0a0a0a",
+        "line-color": "rgba(56, 40, 27, 1)",
         "line-width": [
           "interpolate",
           ["exponential", 1.6],
@@ -994,14 +995,23 @@
       "source-layer": "boundaries",
       "filter": ["<=", "kind_detail", 2],
       "paint": {
-        "line-color": "#707070",
-        "line-width": 0.7,
+        "line-color": "rgba(21, 21, 21, 1)",
         "line-dasharray": [
           "step",
           ["zoom"],
           ["literal", [2]],
           4,
           ["literal", [2, 1]]
+        ],
+        "line-opacity": 0.8,
+        "line-width": [
+          "interpolate",
+          ["linear"],
+          ["zoom"],
+          4,
+          ["interpolate", ["linear"], ["number", ["get", ""]], 0, 1.2],
+          6,
+          ["interpolate", ["linear"], ["number", ["get", ""]], 0, 3]
         ]
       }
     },
@@ -1012,14 +1022,23 @@
       "source-layer": "boundaries",
       "filter": [">", "kind_detail", 2],
       "paint": {
-        "line-color": "#707070",
-        "line-width": 0.4,
+        "line-color": "rgba(36, 36, 36, 1)",
         "line-dasharray": [
           "step",
           ["zoom"],
           ["literal", [2]],
-          4,
+          6,
           ["literal", [2, 1]]
+        ],
+        "line-opacity": 0.6,
+        "line-width": [
+          "interpolate",
+          ["linear"],
+          ["zoom"],
+          4,
+          ["interpolate", ["linear"], ["number", ["get", ""]], 0, 1],
+          10,
+          ["interpolate", ["linear"], ["number", ["get", ""]], 0, 2]
         ]
       }
     },
@@ -1308,12 +1327,13 @@
         "symbol-placement": "point",
         "text-font": ["Noto Sans Italic"],
         "text-field": ["get", "addr_housenumber"],
-        "text-size": 12
+        "text-size": 24
       },
       "paint": {
-        "text-color": "#525252",
-        "text-halo-color": "#141414",
-        "text-halo-width": 1
+        "text-color": "rgba(140, 140, 140, 1)",
+        "text-halo-color": "rgba(30, 30, 30, 1)",
+        "text-halo-width": 1,
+        "text-opacity": 0.8
       }
     },
     {
@@ -1614,8 +1634,8 @@
         "text-letter-spacing": 0.2
       },
       "paint": {
-        "text-color": "#707070",
-        "text-halo-color": "#333333",
+        "text-color": "rgba(159, 159, 159, 1)",
+        "text-halo-color": "rgba(0, 0, 0, 1)",
         "text-halo-width": 1
       }
     },
@@ -1917,8 +1937,8 @@
         "text-size": 12
       },
       "paint": {
-        "text-color": "#525252",
-        "text-halo-color": "#141414",
+        "text-color": "rgba(106, 106, 106, 1)",
+        "text-halo-color": "rgba(35, 35, 35, 1)",
         "text-halo-width": 1
       }
     },
@@ -3469,8 +3489,8 @@
         "text-transform": "uppercase"
       },
       "paint": {
-        "text-color": "#5c5c5c",
-        "text-halo-color": "#141414",
+        "text-color": "rgba(110, 110, 110, 1)",
+        "text-halo-color": "rgba(36, 36, 36, 1)",
         "text-halo-width": 1
       }
     },
@@ -3785,8 +3805,8 @@
         "icon-allow-overlap": false
       },
       "paint": {
-        "text-color": "rgba(84, 86, 105, 1)",
-        "text-halo-color": "rgba(55, 57, 74, 1)",
+        "text-color": "rgba(125, 127, 136, 1)",
+        "text-halo-color": "rgba(48, 49, 53, 1)",
         "text-halo-width": 1
       }
     },
