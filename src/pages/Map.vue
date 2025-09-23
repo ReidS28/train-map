@@ -13,7 +13,7 @@ import "maplibre-gl/dist/maplibre-gl.css";
 
 onMounted(async () => {
 
-	const styleResponse = await fetch("/mapStyle.json");
+	const styleResponse = await fetch("/basemapStyle.json");
 	const styleJson = await styleResponse.json();
 
 	// Style Editor: https://maplibre.org/maputnik/?layer=1436849566%7E43#13.8/40.07632/-83.05067
@@ -24,6 +24,19 @@ onMounted(async () => {
 		center: [-83, 40],
 		zoom: 10,
 	});
+
+	map.addSource('raster-dem-source', {
+			 type: 'raster-dem',
+			 url: 'https://demotiles.maplibre.org/terrain-tiles/tiles.json',
+			 tileSize: 256
+	});
+
+	/*map.addSource("openRailwayMap", {
+		"attribution": "<a href=\"https://www.openstreetmap.org/copyright\">© OpenStreetMap contributors</a>, Style: <a href=\"http://creativecommons.org/licenses/by-sa/2.0/\">CC-BY-SA 2.0</a> <a href=\"http://www.openrailwaymap.org/\">OpenRailwayMap</a>",
+		"type": "raster",
+		"tiles" : ['https://tiles.openrailwaymap.org/${style}/${z}/${x}/${y}.png'],
+		"tileSize": 512
+	});*/
 
 	map.addControl(new maplibregl.NavigationControl(), "top-right");
 
@@ -44,6 +57,12 @@ onMounted(async () => {
 			unit: 'metric'
 	});
 	map.addControl(scale);
+
+	let marker = new maplibregl.Marker({
+		color: "#FFFFFF",
+		draggable: true
+	}).setLngLat([-83, 40])
+	.addTo(map);
 	
 });
 
