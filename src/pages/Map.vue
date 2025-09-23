@@ -7,9 +7,10 @@
 </template>
 
 <script lang="ts" setup>
-import { /*ref,*/ onMounted, onBeforeUnmount } from "vue";
+import { ref, onMounted, onBeforeUnmount } from "vue";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
+import ZoomIndicator from "../controls/ZoomIndicator.ts";
 
 onMounted(async () => {
 
@@ -25,19 +26,30 @@ onMounted(async () => {
 		zoom: 10,
 	});
 
-	map.addSource('raster-dem-source', {
-			 type: 'raster-dem',
-			 url: 'https://demotiles.maplibre.org/terrain-tiles/tiles.json',
-			 tileSize: 256
+	map.on("load", () => {
+
+		map.addSource("openRailwayMap", {
+			type: "raster",
+			tiles: [
+				"https://tiles.openrailwaymap.org/standard/{z}/{x}/{y}.png"
+			],
+			tileSize: 256,//512,
+			attribution:
+				'<a href="https://www.openstreetmap.org/copyright">© OpenStreetMap contributors</a>, ' +
+				'Style: <a href="http://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA 2.0</a> ' +
+				'<a href="http://www.openrailwaymap.org/">OpenRailwayMap</a>'
+		});
+
+		map.addLayer({
+			id: "openRailwayMap-layer",
+			type: "raster",
+			source: "openRailwayMap",
+			minzoom: 0,
+			maxzoom: 19,
+		});
 	});
 
-	/*map.addSource("openRailwayMap", {
-		"attribution": "<a href=\"https://www.openstreetmap.org/copyright\">© OpenStreetMap contributors</a>, Style: <a href=\"http://creativecommons.org/licenses/by-sa/2.0/\">CC-BY-SA 2.0</a> <a href=\"http://www.openrailwaymap.org/\">OpenRailwayMap</a>",
-		"type": "raster",
-		"tiles" : ['https://tiles.openrailwaymap.org/${style}/${z}/${x}/${y}.png'],
-		"tileSize": 512
-	});*/
-
+	
 	map.addControl(new maplibregl.NavigationControl(), "top-right");
 
 	let geolocate = new maplibregl.GeolocateControl({
@@ -53,16 +65,12 @@ onMounted(async () => {
 	map.addControl(new maplibregl.GlobeControl(), "top-right");
 
 	let scale = new maplibregl.ScaleControl({
-			maxWidth: 240,
-			unit: 'metric'
+		maxWidth: 240,
+		unit: 'metric'
 	});
-	map.addControl(scale);
+	map.addControl(scale, "bottom-left");
 
-	let marker = new maplibregl.Marker({
-		color: "#FFFFFF",
-		draggable: true
-	}).setLngLat([-83, 40])
-	.addTo(map);
+	map.addControl(new ZoomIndicator(), "bottom-left");
 	
 });
 
@@ -74,6 +82,7 @@ onBeforeUnmount(() => {
 <style scoped>
 .map-container {
 	width: 100%;
-	height: 95vh
+	height: 95vh;
 }
+	
 </style>
