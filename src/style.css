@@ -1,3 +1,0 @@
-.map-container, .mapboxgl-canvas {
-  user-select: auto; /* or 'none' if you want to prevent text selection */
-}
