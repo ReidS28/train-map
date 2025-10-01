@@ -1,33 +1,41 @@
-import { Map as MaplibreMap } from 'maplibre-gl';
+import { Map as MaplibreMap, LngLatBoundsLike } from 'maplibre-gl';
 import type { ControlPosition, IControl } from 'maplibre-gl';
 
-export default class ZoomIndicator implements IControl {
+export default class WorldView implements IControl {
   private container: HTMLElement | undefined;
+  private map: MaplibreMap | undefined;
 
   public getDefaultPosition(): ControlPosition {
     return 'top-right';
   }
 
   onAdd(map: MaplibreMap) {
+    this.map = map;
+
+    // Container
     this.container = document.createElement('div');
     this.container.className = 'maplibregl-ctrl';
     this.container.style.backgroundColor = 'white';
-    this.container.style.padding = '0px';
+    this.container.style.padding = '4px 8px';
     this.container.style.border = '1px solid black';
     this.container.style.borderRadius = '4px';
     this.container.style.cursor = 'pointer';
+    this.container.style.color = 'black';
+    this.container.style.userSelect = 'none';
 
-    const zoomLevel = document.createElement('span');
-    zoomLevel.style.padding = '0 8px';
+    this.container.textContent = '🌍';
 
-    this.container.appendChild(zoomLevel);
+    // Click → zoom to full world
+    this.container.addEventListener('click', () => {
+      if (!this.map) return;
 
-    map.on('zoom', () => {
-      const currentZoom = map.getZoom().toFixed(2);
-      zoomLevel.textContent = `Z: ${currentZoom}`;
+      map.flyTo({
+        center: [-40, 24],
+        zoom: 2,
+        duration: 100000,  // ms
+      });
+
     });
-
-    zoomLevel.textContent = `Z: ${map.getZoom().toFixed(2)}`;
 
     return this.container;
   }
@@ -36,6 +44,6 @@ export default class ZoomIndicator implements IControl {
     if (this.container) {
       this.container.parentNode?.removeChild(this.container);
     }
+    this.map = undefined;
   }
-
 }
