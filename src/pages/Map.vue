@@ -14,72 +14,60 @@ import ZoomIndicator from "../map-controls/ZoomIndicator.ts";
 import LayerControl from "../map-controls/LayerControl.ts";
 import WorldView from "../map-controls/WorldView.ts";
 
+const baseMaps = {
+  "Dark": "/map-layers/basemap-styles/basemapStyleDark.json",
+  "OSM Bright": "https://styles.trailsta.sh/osm-bright.json",
+  "Hybrid": "https://raw.githubusercontent.com/go2garret/maps/main/src/assets/json/arcgis_hybrid.json",  // or another satellite style
+};
 
-onMounted(async () => {
+// https://github.com/ka7eh/maplibre-gl-basemaps ????
 
-  const styleResponse = await fetch("/basemapStyle.json");
-  const styleJson = await styleResponse.json();
 
-  // Style Editor: https://maplibre.org/maputnik/?layer=1436849566%7E43#13.8/40.07632/-83.05067
-
-  const map = new maplibregl.Map({
-    container: "map",
-    style: styleJson, 
-    center: [-83, 40],
-    zoom: 10,
-  });
-
-  map.on("load", () => {
-
-    map.addSource("openRailwayMap", {
+const overlays = [
+  {
+    id: "openRailwayMap",   // source id
+    name: "Railways",
+    checked: true,
+    source: {
       type: "raster",
-      tiles: [
-        "https://tiles.openrailwaymap.org/standard/{z}/{x}/{y}.png"
-      ],
-      tileSize: 256,//512,
-      attribution:
-        '<a href="https://www.openstreetmap.org/copyright">© OpenStreetMap contributors</a>, ' +
-        'Style: <a href="http://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA 2.0</a> ' +
-        '<a href="http://www.openrailwaymap.org/">OpenRailwayMap</a>'
-    });
-
-    map.addLayer({
-      id: "openRailwayMap-layer",
-      type: "raster",
-      source: "openRailwayMap",
-      minzoom: 0,
-      maxzoom: 19,
-    });
-  });
-
-  const layerControl = new LayerControl([
-        { id: "openRailwayMap-layer", name: "Open Railway Map", checked: true },
-      ]);
-  map.addControl(layerControl, "top-left");
-  
-  map.addControl(new maplibregl.NavigationControl(), "top-right");
-
-  let geolocate = new maplibregl.GeolocateControl({
-    positionOptions: {
-        enableHighAccuracy: true
+      tiles: ["https://tiles.openrailwaymap.org/standard/{z}/{x}/{y}.png"],
+      tileSize: 256,
+      attribution: "OpenRailwayMap",
     },
-    trackUserLocation: true
+    layer: {
+      id: "openRailwayMap-layer", // layer id
+      type: "raster",
+      source: "openRailwayMap",   // references the source id
+    },
+  },
+];
+
+
+  onMounted(async () => {
+    const map = new maplibregl.Map({
+      container: "map",
+      style: Object.values(baseMaps)[0], // first base map as default
+      center: [-83, 40],
+      zoom: 10,
+    });
+
+    // add controls
+    const layerControl = new LayerControl(baseMaps, overlays);
+    map.addControl(layerControl, "top-left");
+    map.addControl(new maplibregl.NavigationControl(), "top-right");
+    map.addControl(new maplibregl.GeolocateControl({
+      positionOptions: { enableHighAccuracy: true },
+      trackUserLocation: true,
+    }), "top-right");
+    map.addControl(new WorldView(), "top-right");
+    map.addControl(new maplibregl.GlobeControl(), "top-right");
+    map.addControl(new maplibregl.ScaleControl({
+      maxWidth: window.innerWidth * 0.2,
+      unit: "metric",
+    }), "bottom-left");
+    map.addControl(new ZoomIndicator(), "bottom-left");
   });
-  map.addControl(geolocate, "top-right");
 
-  map.addControl(new WorldView(), "top-right");
-
-  map.addControl(new maplibregl.GlobeControl(), "top-right");
-
-  let scale = new maplibregl.ScaleControl({
-    maxWidth: window.innerWidth * 0.2,
-    unit: 'metric'
-  });
-  map.addControl(scale, "bottom-left");
-
-  map.addControl(new ZoomIndicator(), "bottom-left");
-  
-});
 
 onBeforeUnmount(() => {
   
@@ -93,9 +81,39 @@ onBeforeUnmount(() => {
     top: 39px; /* Account for the navbar */
 }
 
+/*Map Control Style*/
+.maplibregl-ctrl-attrib.maplibregl-compact,
+.maplibregl-ctrl-group {
+  background-color: #333333;
+  color: #bebebe;
+}
+
+.maplibregl-ctrl-attrib-button,
+.maplibregl-ctrl button .maplibregl-ctrl-icon {
+    filter: invert(80%) hue-rotate(180deg) brightness(1.2); 
+  }
+
+/*Atribution Button*/
+.maplibregl-ctrl-attrib-button{
+  background-color: #ffffff;
+}
+
+/*Atribution Button*/
+.maplibregl-ctrl-attrib.maplibregl-compact a{
+  color: #dddddd;
+}
+
+.maplibregl-ctrl-scale{
+  background-color: #444444;
+  border-color: #282828;
+  color: #dddddd;
+  user-select: none;
+}
+
 </style>
 
 <style scoped>
+  
 .map-container {
     width: 100vw;
     height: 100vh;
@@ -103,4 +121,5 @@ onBeforeUnmount(() => {
     bottom: 0;
     right: 0;
 }
+  
 </style>
