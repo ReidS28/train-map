@@ -1,0 +1,14 @@
+{
+	"version": 8,
+	"name": "Blank Dark Basemap",
+	"sources": {},
+	"layers": [
+		{
+			"id": "background",
+			"type": "background",
+			"paint": {
+				"background-color": "#2b2b2b"
+			}
+		}
+	]
+}
