@@ -7,23 +7,28 @@
 </template>
 
 <script lang="ts" setup>
-import { /*ref,*/ onMounted, onBeforeUnmount } from "vue";
+import { onMounted, onBeforeUnmount } from "vue";
 import maplibregl from "maplibre-gl";
-import "maplibre-gl/dist/maplibre-gl.css";
+import 'maplibre-gl/dist/maplibre-gl.css';
+
 import ZoomIndicator from "../map-controls/ZoomIndicator.ts";
-import LayerControl from "../map-controls/LayerControl.ts";
 import WorldView from "../map-controls/WorldView.ts";
 
+import StylesControl from "@mapbox-controls/styles";
+import "@mapbox-controls/styles/src/index.css";
+
+// --- Base Styles (style.json URLs) ---
 const baseMaps = {
 	Dark: "/map-layers/basemap-styles/basemapStyleDark.json",
 	"OSM Bright": "https://styles.trailsta.sh/osm-bright.json",
 	Hybrid:
-		"https://raw.githubusercontent.com/go2garret/maps/main/src/assets/json/arcgis_hybrid.json", // or another satellite style
+		"https://raw.githubusercontent.com/go2garret/maps/main/src/assets/json/arcgis_hybrid.json",
 };
 
+// --- Overlay Layers ---
 const overlays = [
 	{
-		id: "openRailwayMap", // source id
+		id: "openRailwayMap",
 		name: "Railways",
 		checked: true,
 		source: {
@@ -33,15 +38,16 @@ const overlays = [
 			attribution: "OpenRailwayMap",
 		},
 		layer: {
-			id: "openRailwayMap-layer", // layer id
+			id: "openRailwayMap-layer",
 			type: "raster",
-			source: "openRailwayMap", // references the source id
+			source: "openRailwayMap",
 		},
 	},
 ];
 
 onMounted(async () => {
-    const styleResponse = await fetch("/map-layers/blankStyle.json");
+	// --- Load initial blank style ---
+	const styleResponse = await fetch("/map-layers/blankStyle.json");
 	const styleJson = await styleResponse.json();
 
 	const map = new maplibregl.Map({
@@ -51,38 +57,63 @@ onMounted(async () => {
 		zoom: 10,
 	});
 
-	// add controls
-	const layerControl = new LayerControl(baseMaps, overlays);
-	map.addControl(layerControl, "top-left");
+	// --- Add controls once map loads ---
+	map.on("load", () => {
+		// 🔹 Base Style Switcher
+		const stylesControl = new StylesControl({
+			styles: Object.entries(baseMaps).map(([name, url]) => ({
+				label: name,
+				styleName: name,
+				styleUrl: url,
+			})),
+			initialStyle: baseMaps.Dark,
+		});
 
-	map.addControl(new maplibregl.NavigationControl(), "top-right");
-	map.addControl(
-		new maplibregl.GeolocateControl({
-			positionOptions: { enableHighAccuracy: true },
-			trackUserLocation: true,
-		}),
-		"top-right"
-	);
-	map.addControl(new WorldView(), "top-right");
-	map.addControl(new maplibregl.GlobeControl(), "top-right");
+		map.addControl(stylesControl, "top-left");
 
-	map.addControl(
-		new maplibregl.ScaleControl({
-			maxWidth: window.innerWidth * 0.2,
-			unit: "metric",
-		}),
-		"bottom-left"
-	);
-	map.addControl(new ZoomIndicator(), "bottom-left");
+		// 🔹 Navigation + Extras
+		map.addControl(new maplibregl.NavigationControl(), "top-right");
+		map.addControl(
+			new maplibregl.GeolocateControl({
+				positionOptions: { enableHighAccuracy: true },
+				trackUserLocation: true,
+			}),
+			"top-right"
+		);
+		map.addControl(new WorldView(), "top-right");
+		map.addControl(new maplibregl.GlobeControl(), "top-right");
+		map.addControl(
+			new maplibregl.ScaleControl({
+				maxWidth: window.innerWidth * 0.2,
+				unit: "metric",
+			}),
+			"bottom-left"
+		);
+		map.addControl(new ZoomIndicator(), "bottom-left");
+	});
+
+	// --- Reapply overlays after style switches ---
+	map.on("styledata", () => {
+		overlays.forEach((ol) => {
+			if (!map.getSource(ol.id)) {
+				map.addSource(ol.id, ol.source);
+			}
+			if (!map.getLayer(ol.layer.id)) {
+				map.addLayer(ol.layer);
+			}
+		});
+	});
 });
 
-onBeforeUnmount(() => {});
+onBeforeUnmount(() => {
+	// Optional cleanup if needed
+});
 </script>
 
 <style>
 #map.map-container .maplibregl-ctrl-top-right,
 #map.map-container .maplibregl-ctrl-top-left {
-	top: 39px; /* Account for the navbar */
+	top: 100px/*39px; /* Account for the navbar */
 }
 
 /*Map Control Style*/

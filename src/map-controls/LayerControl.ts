@@ -14,7 +14,7 @@ export default class LayerControl implements IControl {
   private boundOnStyleLoad: (() => void) | undefined;
 
   constructor(
-    private baseMaps: Record<string, string>, // name => style.json URL
+    private baseMaps: Record<string, string>,
     private overlays: OverlayLayer[]
   ) {}
 
