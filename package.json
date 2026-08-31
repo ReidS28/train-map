@@ -19,5 +19,12 @@
     "typescript": "~6.0.2",
     "vite": "^8.2.2",
     "vite-plugin-mkcert": "^1.17.12"
+  },
+  "dependencies": {
+    "@protomaps/basemaps": "^5.7.2",
+    "@tailwindcss/vite": "^4.3.3",
+    "maplibre-gl": "^6.6.0",
+    "pmtiles": "^4.5.0",
+    "tailwindcss": "^4.3.3"
   }
 }

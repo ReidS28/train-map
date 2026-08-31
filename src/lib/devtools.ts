@@ -10,6 +10,6 @@ export async function initDevtools() {
 	eruda.init({
 		container,
 		tool: ["console", "elements", "network", "resources"],
-		useShadowDom: false, // important — see note below
+		useShadowDom: false,
 	});
 }
